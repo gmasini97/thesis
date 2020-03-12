@@ -1,0 +1,88 @@
+\documentclass[12pt,a4paper,oneside]{book}
+\renewcommand{\baselinestretch}{1.5} 
+\usepackage[]{frontespizio}
+\usepackage[italian]{babel}
+\usepackage{titling}
+\usepackage{hyperref}
+\usepackage{textcomp}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{comment}
+\usepackage{nameref}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{longtable}
+\usepackage{caption}
+\usepackage{subfig}
+\usepackage[dvipsnames]{xcolor}
+
+\graphicspath{ {./_images/} }
+\definecolor{keyword}{rgb}{0,0,1}
+\definecolor{basicword}{rgb}{0,0.1,0.1}
+\definecolor{numberstyle}{rgb}{0.5,0.5,0.5}
+
+\lstset{
+    frameround=single,
+    language=C++,
+    numbers=left,
+    breaklines=true,
+    keywordstyle=\color{keyword}\bfseries, 
+    basicstyle=\small\ttfamily\color{basicword},
+    numberstyle=\color{numberstyle},
+    morekeywords={size_t, SignalBuffer_t, cuComplex}
+}
+
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
+
+\begin{document}
+
+\begin{frontespizio}
+    \Rientro {1.5cm}
+    \Margini {1.5cm}{1.5cm}{1.5cm}{1cm}
+    \Universita {Modena e Reggio Emilia}
+    \Logo [1.5cm]{_images/UNIMORE}
+    \Facolta {Ingegneria}
+    \Corso [Laurea]{Ingegneria Informatica}
+    \Annoaccademico {2018-2019}
+    \Titoletto {Prova Finale}
+    \Titolo {Studio e implementazione di alcuni algoritmi DSP su CPU e GPU}
+    \Candidato [108456]{Gabriele Masini}
+    \Relatore {Nicola Bicocchi}
+    %\Correlatore{da inserire}
+\end{frontespizio}
+
+\newpage
+\begin{flushright}
+\null\vspace{\stretch{1}}
+\begin{comment}
+\textit{Qualcosa di bello}
+\end{comment}
+\vspace{\stretch{1}}\null
+\end{flushright}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\input{_chapters/introduzione}
+
+\input{_chapters/nozioni}
+
+\input{_chapters/gpu}
+
+\input{_chapters/conclusioni}
+
+\appendix
+\input{_chapters/appendice}
+
+\bibliographystyle{plain}
+\bibliography{thesis}
+
+\end{document}

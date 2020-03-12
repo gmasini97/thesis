@@ -1,0 +1,63 @@
+\documentclass{report}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{titling}
+\usepackage[style=ieee]{biblatex}
+\usepackage{hyperref}
+\usepackage{textcomp}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{comment}
+\usepackage{nameref}
+\usepackage{float}
+\usepackage{wrapfig}
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
+
+\addbibresource{108456-masini.bib}
+\graphicspath{ {./imgs/} }
+\lstset{
+  basicstyle=\small,
+  breaklines=true
+}
+
+\newcommand{\srsnomeprogetto}{GPMS}
+\newcommand{\srslongnomeprogetto}{General Purpose Monitoring System}
+
+\title{
+    \srsnomeprogetto\linebreak
+    \large \textit \srslongnomeprogetto \linebreak
+    \large Specifica dei requisiti di progetto}
+\author{Gabriele Masini \#108456}
+\date{2019-12-10 rev.2020-02-10}
+
+\begin{document}
+    
+\maketitle
+\pagenumbering{gobble}
+\newpage
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+\input{chapters/introduzione}
+
+\input{chapters/nozioni}
+
+\input{chapters/gpu}
+
+\input{chapters/gpuperdsp}
+
+\input{chapters/conclusioni}
+
+\appendix
+\chapter{Appendix Title}
+\input{chapters/appendice}
+
+\end{document}
