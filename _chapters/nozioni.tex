@@ -3,27 +3,31 @@ Prima di cimentarsi in implementazioni di algoritmi è assolutamente necessario 
 
 \section{Concetti fondamentali in DSP}
 \subsection{Segnali, sistemi lineari}
-Nel corso di questa tesi verranno presentati spesso i termini \textit{segnale} e \textit{sistema} per cui è necessario definirli. Un segnale è ``una descrizione di come un parametro varia rispetto ad un altro parametro''\cite{dspguide}. Esempi di segnali sono: pressione dell'aria nel tempo (audio), coppia motrice rispetto al numero di giri di un motore etc.
+Nel corso di questa tesi verranno utilizzati spesso i termini \textit{segnale} e \textit{sistema} per cui è necessario definirli. Un segnale è ``una descrizione di come un parametro varia rispetto ad un altro parametro'' \cite[pp.~87-88]{dspguide}. Esempi di segnali sono: pressione dell'aria nel tempo (audio), coppia motrice rispetto al numero di giri di un motore etc.
 
-Per studiare i segnali e modificarne l'andamento si fa riferimento ai sistemi. Un sistema è ``un qualsiasi processo che produce un segnale in uscita in risposta ad un segnale in ingresso''\cite{dspguide}. In particolare si studiano i sistemi lineari, ovvero sistemi che seguono le proprietà necessarie per la linearità algebrica (omogeneità e additività). La proprietà di linearità è fondamentale nel DSP perché permette di scomporre il problema in sottoproblemi più piccoli e facilmente risolvibili per poi ricombinarli assieme e ottenere il risultato del problema di partenza.
+Per studiare i segnali e modificarne l'andamento si fa riferimento ai sistemi. Un sistema è ``un qualsiasi processo che produce un segnale in uscita in risposta ad un segnale in ingresso'' \cite[pp.~87-88]{dspguide}. In particolare si studiano i sistemi lineari, ovvero sistemi che seguono le proprietà necessarie per la linearità algebrica (omogeneità e additività). La proprietà di linearità è fondamentale nel DSP perché permette di scomporre il problema in sottoproblemi più piccoli e facilmente risolvibili per poi ricombinarli assieme e ottenere il risultato del problema di partenza.
+
+Il comportamento di un sistema è descritto dalla risposta all'impulso o dalla sua funzione di trasferimento. La prima è il risultato del sistema quando all'ingresso viene applicata una funzione impulsiva (ovvero la funzione ``delta di Dirac'' nel caso continuo; nel caso discreto si utilizza una funzione ``delta di Kronecker''). La funzione di trasferimento invece è il rapporto tra lo spettro di un generico segnale di uscita e il rispettivo spettro del segnale di ingresso. È dimostrabile che la funzione di trasferimento è la trasformata di Fourier della risposta all'impulso \cite[pp.~3.29-3.31]{calandrino}.
 
 \subsection{Convoluzione}
-Il primo strumento fondamentale per comprendere gli algoritmi DSP è l'operazione di convoluzione tra segnali. Essa è definita nel seguente modo\cite{calandrino}:
+Il primo strumento fondamentale per comprendere gli algoritmi DSP è l'operazione di convoluzione tra segnali. Essa è definita nel seguente modo \cite[p.~2.10]{calandrino}:
 \begin{equation}
     x(t) * y(t) = \int_{-\infty}^{+\infty}x(\tau)y(t-\tau)d\tau
 \end{equation}
 Dove $x$ e $y$ sono i due segnali da convolvere.
 
-La convoluzione per segnali discreti è definita da una sommatoria\cite{dspguide}:
+La convoluzione per segnali discreti è definita da una sommatoria \cite[p.~120]{dspguide}:
 \begin{equation}
     y[k] = \displaystyle\sum_{j=0}^{M-1}h[j]x[i-j]
 \end{equation}
 Dove $x$ e $h$ sono i segnali da convolvere, $y$ il risultato della loro convoluzione. $M$ è il numero di punti del segnale $h$. È fondamentale precisare che il segnale risultante dalla convoluzione discreta di $x$ e $h$ contiene $N+M-1$ punti, dove $N$ indica il numero di punti del segnale $x$.
 
+La convoluzione è importante nella elaborazione dei segnali perché costituisce il primo strumento con cui si può ottenere l'uscita di un sistema a partire dal segnale temporale in ingresso e la risposta impulsiva del sistema stesso; tale segnale in uscita è infatti la convoluzione tra il segnale in ingresso e la risposta impulsiva del sistema.
 
 \subsection{La trasformata di fourier}
-Strumento essenziale per gli algoritmi DSP, la trasformata di Fourier scompone un segnale nel dominio del tempo nelle sue componenti nel dominio delle frequenze. Esistono trasformate diverse per diversi tipi di rappresentazione dei segnali nel tempo e una classificazione accettata a livello matematico e ingegneristico\cite{dspguide} è la seguente:
+Strumento essenziale per gli algoritmi DSP, la trasformata di Fourier scompone un segnale nel dominio del tempo nelle sue componenti nel dominio delle frequenze. Esistono trasformate diverse per diversi tipi di rappresentazione dei segnali nel tempo e una classificazione accettata a livello matematico e ingegneristico \cite[p.~144]{dspguide} è la seguente:
 
+\begin{table}[H]
 \begin{center}
 \begin{small}
 \begin{tabular}{p{0.4\linewidth} p{0.4\linewidth}}
@@ -36,10 +40,10 @@ Strumento essenziale per gli algoritmi DSP, la trasformata di Fourier scompone u
 \end{tabular}
 \end{small}
 \end{center}
+\caption{Famiglia di trasformate di Fourier}
+\end{table}
 
-\medskip
-
-Le formule (trasformazione e antitrasformazione) della CFT sono definite nel modo seguente\cite{calandrino}:
+Le formule (trasformazione e antitrasformazione) della CFT sono definite nel modo seguente \cite[p.~2.7]{calandrino}:
 \begin{equation}
     {F}(\omega) = \int_{-\infty}^{+\infty} f(t){e}^{-j \omega t} dt
 \end{equation}
@@ -48,7 +52,7 @@ Le formule (trasformazione e antitrasformazione) della CFT sono definite nel mod
 \end{equation}
 Dove $f(t)$ identifica il segnale nel dominio dei tempi, $F(\omega)$ la sua trasformata e $j$ è l'unità immaginaria tale che $j^2 = -1$.
 
-La serie di fourier invece è definita come\cite{calandrino}:
+La serie di fourier invece è definita come \cite[p.~2.4]{calandrino}:
 \begin{equation}
     {f}(t) = \displaystyle\sum_{n=-\infty}^{+\infty} c_n e^{jn \omega_0 t} \quad, \quad \omega_0 = \frac{2\pi}{T}
 \end{equation}
@@ -56,42 +60,44 @@ con
 \begin{equation}
     c_n = \frac{1}{T}\int_{-\frac{T}{2}}^{+\frac{T}{2}}f(t)e^{-jn \omega_0 t} dt
 \end{equation}
-Dove $T$ è il periodo della funzione e $c_n$ è il coefficiente $n$-esimo della serie. Gli spettri di ampiezza e di fase si ricavano dai valori di $A_n$ e $\varphi_n$ definiti nel seguente modo:
+Dove $T$ è il periodo della funzione e $c_n$ è il coefficiente $n$-esimo della serie. Gli spettri di ampiezza e di fase si ricavano dai valori di $A_n$ e $\varphi_n$ definiti nel seguente modo \cite[p.~2.5]{calandrino}:
 \begin{equation}
     c_0 = A_0
 \end{equation}
 \begin{equation}
     2 c_n = A_n e^{-j\varphi_n} \quad,\quad n \geq 1
 \end{equation}
-Essi generano degli spettri a righe in corrispondenza delle pulsazioni multiple di $\omega_0$.
+Essi generano degli spettri a righe in corrispondenza delle pulsazioni multiple di $\omega_0$ \cite[p.~2.5]{calandrino}.
 
-Per quanto la CFT e la serie di Fourier siano degli strumenti matematici indispensabili per comprendere l'analisi dei segnali, esse trovano relativamente poca applicazione pratica nella elaborazione dei segnali, poiché solitamente i segnali che devono essere processati da un calcolatore hanno natura tempo-discreta (ovvero sono stati campionati) e necessitano, quindi, dell'utilizzo della DTFT o della DFT. Come vedremo in seguito, però, si utilizza sempre la DFT, in quanto non è possibile modellare in un calcolatore il concetto di ``infinito'' fondamentale per la definizione e il calcolo della DTFT\cite{dspguide}.
+Per quanto la CFT e la serie di Fourier siano degli strumenti matematici indispensabili per comprendere l'analisi dei segnali, esse trovano relativamente poca applicazione pratica nella elaborazione dei segnali, poiché solitamente i segnali che devono essere processati da un calcolatore hanno natura tempo-discreta (ovvero sono stati campionati) e necessitano, quindi, dell'utilizzo della DTFT o della DFT. Come vedremo in seguito, però, si utilizza sempre la DFT, in quanto non è possibile modellare in un calcolatore il concetto di ``infinito'' fondamentale per la definizione e il calcolo della DTFT \cite[pp.~144-145]{dspguide}.
 
 \subsection{La trasformata di Fourier Discreta (DFT)}
-Come presentato nella sezione precedente, la DFT trasforma un segnale tempo-discreto periodico nelle sue componenti nel dominio delle frequenze; essa per un segnale di $N$ punti è definita nel seguente modo\cite{dspguide}:
+Come presentato nella sezione precedente, la DFT trasforma un segnale tempo-discreto periodico nelle sue componenti nel dominio delle frequenze; essa per un segnale di $N$ punti è definita nel seguente modo \cite[p.~570]{dspguide}:
 \begin{equation}
     X[k] = \frac{1}{N}\displaystyle\sum_{n=0}^{N-1}x[n]e^{-j 2\pi kn/N}
 \end{equation}
-Si presti attenzione al fatto che la trasformata è definita su $N$ punti da $0$ a $N-1$ ed essi rappresentano le frequenze positive per $0 \leq n \leq N/2$ e frequenze negative per $N/2 \leq n \leq N-1$, poiché lo spettro di frequenze di un segnale discreto è periodico. Questo comporta che la trasformata di un segnale reale abbia la parte reale dello spettro in simmetria pari rispetto a $N/2$ e parte immaginaria in simmetria dispari rispetto a $N/2$.
+Si presti attenzione al fatto che la trasformata è definita su $N$ punti da $0$ a $N-1$ ed essi rappresentano le frequenze positive per $0 \leq n \leq N/2$ e frequenze negative per $N/2 \leq n \leq N-1$, poiché lo spettro di frequenze di un segnale discreto è periodico. Questo comporta che la trasformata di un segnale reale (con parte immaginaria nulla per ogni campione) abbia la parte reale dello spettro in simmetria pari rispetto a $N/2$ e parte immaginaria in simmetria dispari rispetto a $N/2$ \cite[p.~570]{dspguide}.
 
-L'operazione di antitrasformazione è definita nel modo seguente:
+L'operazione di antitrasformazione è definita nel modo seguente \cite[p.~572]{dspguide}:
 \begin{equation}
     x[n] = \displaystyle\sum_{k=0}^{N-1}X[k]e^{j 2\pi kn/N}
 \end{equation}
 
+Nonostante la DFT sia un ottimo punto di partenza per poter calcolare la trasformata di un segnale discreto con l'utilizzo del calcolatore elettronico, essa è limitata dal fatto che è onerosa in termini di tempi di calcolo; come vedremo in seguito nel capitolo \ref{implementazioni} al suo posto si utilizza l'algoritmo di Cooley-Tukey \cite{cooleytukey}, denominato ``FFT'' ovvero \textit{fast Fourier transform}.
+
 \section{GPU e CUDA}
 Lo studio delle implementazioni su GP-GPU viene effettuato tramite l'utilizzo della tecnologia CUDA proprietaria di Nvidia. Essa espone una interfaccia di programmazione per l'utilizzo del calcolo parallelo delle schede grafiche di proprietà di Nvidia in linguaggio di programmazione C++.
 
-È vantaggioso studiare implementazioni su schede video in quanto esse permettono di effettuare un elevato numero di operazioni parallele su un certo insieme di dati; infatti il termine scheda ``video'' deriva dal fatto che in principio erano utilizzate soprattutto per l'elaborazione e rendering di video, dove sono necessarie elaborazioni simili per tanti dati quanti sono i pixel dell'immagine. In tempi relativamente recenti, però, si è smesso di parlare di GPU come schede video, ma si parla di GP-GPU acronimo di \textit{General Purpose Graphical Processing Unit}, ovvero ``Schede video per scopi generici'', poiché hanno trovato largo utilizzo per quanto riguarda elaborazioni ad alte prestazioni, soprattutto nell'ambito di ricerca di intelligenze artificiali come le reti neurali.
+È vantaggioso studiare implementazioni su schede video in quanto esse permettono di effettuare un elevato numero di operazioni parallele su un certo insieme di dati; infatti il termine scheda ``video'' deriva dal fatto che in principio erano utilizzate soprattutto per l'elaborazione e rendering di video, dove sono necessarie elaborazioni simili per tanti dati quanti sono i pixel dell'immagine. In tempi relativamente recenti, però, si è smesso di parlare di GPU come schede video, ma si parla di GP-GPU acronimo di \textit{General Purpose Graphical Processing Unit}, ovvero ``Schede video per scopi generici'', poiché tali dispositivi hanno trovato largo utilizzo per quanto riguarda elaborazioni ad alte prestazioni, soprattutto nell'ambito di ricerca di intelligenze artificiali come le reti neurali.
 
 \subsection{Programmazione in CUDA}
-Facendo riferimento alla guida per la programmazione in CUDA di Nvidia\cite{cuda_programming_guide} il principale elemento di calcolo che viene somministrato alla GPU è il \textit{kernel}, il quale è una funzione che viene eseguita un numero definito di volte in parallelo sulla GPU quando essa viene invocata. Un kernel viene dichiarato utilizzando il modificatore \lstinline{__global__}. Inoltre è importante tenere a mente che al kernel possono essere passati solo tipi predefiniti, puntatori o struct di tipi predefiniti o puntatori, a patto che i puntatori facciano riferimento ad un'area di memoria sulla GPU, non nella RAM. Questo comporta che i dati da elaborare vadano prima copiati dalla memoria centrale alla memoria della GPU, elaborati e poi ricopiati nella RAM. Le API di CUDA mettono a disposizione le funzioni necessarie per operare questi spostamenti di memoria.
+Facendo riferimento alla guida per la programmazione in CUDA di Nvidia\cite{cuda_programming_guide} il principale elemento di calcolo che viene somministrato alla GPU è il \textit{kernel}, il quale è una funzione che viene eseguita un numero definito di volte in parallelo sulla GPU quando essa viene invocata. Un kernel viene dichiarato utilizzando il modificatore \lstinline{__global__}. Inoltre è importante tenere a mente che al kernel possono essere passati come parametri solo tipi predefiniti, puntatori o struct di tipi predefiniti o puntatori, a patto che i puntatori facciano riferimento ad un'area di memoria sulla GPU, non nella RAM. Questo comporta che i dati da elaborare vadano prima copiati dalla memoria centrale alla memoria della GPU, elaborati e poi ricopiati nella RAM. Le API di CUDA mettono a disposizione le funzioni necessarie per operare questi spostamenti di memoria.
 
 I kernel possono essere raggruppati in \textit{stream} (flussi). I kernel facenti parte dello stesso stream vengono eseguiti in successione, ma stream diversi possono essere eseguiti in parallelo. Non c'è modo di sapere in quale istante un kernel entrerà in esecuzione e nemmeno quando esso finirà, per tale motivo risulta necessario porre attenzione alla sincronizzazione dei dati su cui operano i diversi kernel. Anche in questo caso le API fornite da Nvidia mettono a disposizione varie funzioni di sincronizzazione sia all'interno dei kernel di uno stesso blocco (tramite \lstinline!__syncthreads()!), sia per stream (con \lstinline!cudaStreamSynchronize(<stream>)!) sia per la GPU intera (con \lstinline!cudaDeviceSynchronize()!).
 
-Le unità di elaborazione all'interno della GPU sono divise in blocchi ciascuno dei quali è composto da un numero di thread. Compito del programmatore è distribuire queste risorse ai kernel necessari. I blocchi e i thread al loro interno sono organizzati secondo una matrice 3-dimensionale, e i loro indici sono accessibili all'interno del kernel usando le variabili \lstinline{threadIdx} e \lstinline{blockIdx}.
+Le unità di elaborazione all'interno della GPU sono divise in blocchi ciascuno dei quali è in grado di eseguire un certo numero di thread. Compito del programmatore è distribuire queste risorse ai kernel necessari. I blocchi e i thread al loro interno sono organizzati secondo una matrice 3-dimensionale, e i loro indici sono accessibili all'interno del kernel usando le variabili \lstinline{threadIdx} e \lstinline{blockIdx}.
 
-Un esempio mostrato nella guida alla programmazione di Nvidia è il seguente, il quale esegue la somma di elementi di due vettori:
+Un esempio mostrato nella guida alla programmazione di Nvidia \cite{cuda_programming_guide} è il seguente, il quale esegue la somma di elementi di due vettori:
 
 \begin{lstlisting}
     // Kernel definition
@@ -109,3 +115,5 @@ Un esempio mostrato nella guida alla programmazione di Nvidia è il seguente, il
         ...
     }
 \end{lstlisting}
+
+Come è possibile notare, al kernel vengono passati tre parametri, ovvero i vettori coi dati da elaborare \lstinline{A} e \lstinline{B} e il vettore risultante dalla somma elemento per elemento dei due precedenti, \lstinline{C}. Il kernel viene invocato su un blocco di $N$ thread. All'interno di ogni singolo thread è possibile ottenere l'indice del thread utilizzando \lstinline{threadIdx.x}; in questo caso essendo la definizione del numero di thread monodimensionale ($N$), l'indice del thread corrente si ottiene solo dalla prima componente della variabile tre-dimensionale \lstinline{threadIdx}.

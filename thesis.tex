@@ -1,4 +1,4 @@
-\documentclass[12pt,a4paper,oneside]{book}
+\documentclass[12pt,a4paper,oneside]{book} 
 \renewcommand{\baselinestretch}{1.5} 
 \usepackage[]{frontespizio}
 \usepackage[italian]{babel}
@@ -15,8 +15,12 @@
 \usepackage{longtable}
 \usepackage{caption}
 \usepackage{subfig}
+\usepackage[sorting=nyt]{biblatex}
 \usepackage[dvipsnames]{xcolor}
+\usepackage[letterspace=-500]{microtype}
 
+\restylefloat{table}
+\addbibresource{thesis.bib}
 \graphicspath{ {./_images/} }
 \definecolor{keyword}{rgb}{0,0,1}
 \definecolor{basicword}{rgb}{0,0.1,0.1}
@@ -28,7 +32,7 @@
     numbers=left,
     breaklines=true,
     keywordstyle=\color{keyword}\bfseries, 
-    basicstyle=\small\ttfamily\color{basicword},
+    basicstyle=\linespread{1}\footnotesize\ttfamily\color{basicword},
     numberstyle=\color{numberstyle},
     morekeywords={size_t, SignalBuffer_t, cuComplex}
 }
@@ -82,7 +86,10 @@
 \appendix
 \input{_chapters/appendice}
 
-\bibliographystyle{plain}
-\bibliography{thesis}
+%% \bibliographystyle{plain}
+%% \bibliography{thesis}
+
+\printbibliography
+
 
 \end{document}
