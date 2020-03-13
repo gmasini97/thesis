@@ -1,50 +1,6 @@
 \chapter{Funzioni aggiuntive}
 \begin{lstlisting}
-    void bit_reversal_sort_wsio(SignalBuffer_t* bufferIn, SignalBuffer_t* bufferOut, size_t channel, size_t size)
-    {
-        cuComplex sample, temporary;
-        size_t buffer_size = get_channel_buffer_size(*bufferIn, channel);
-        size_t j, k, halfSize;
-    
-        halfSize = size / 2;
-        j = halfSize;
-    
-        sample = get_signal_buffer_sample(*bufferIn, channel, 0);
-        set_signal_buffer_sample(*bufferOut, channel, 0, sample);
-    
-        sample = get_signal_buffer_sample(*bufferIn, channel, size-1);
-        set_signal_buffer_sample(*bufferOut, channel, size - 1, sample);
-    
-        for (size_t i = 1; i < size - 2; i++)
-        {
-            if (i < j)
-            {
-                temporary = get_signal_buffer_sample(*bufferIn, channel, j);
-                sample = get_signal_buffer_sample(*bufferIn, channel, i);
-    
-                if (i >= buffer_size)
-                    sample = make_cuComplex(0,0);
-                if (j >= buffer_size)
-                    temporary = make_cuComplex(0, 0);
-    
-                set_signal_buffer_sample(*bufferOut, channel, j, sample);
-                set_signal_buffer_sample(*bufferOut, channel, i, temporary);
-            }
-            else if (i == j) {
-                sample = get_signal_buffer_sample(*bufferIn, channel, i);
-                if (i >= buffer_size)
-                    sample = make_cuComplex(0, 0);
-                set_signal_buffer_sample(*bufferOut, channel, i, sample);
-            }
-            k = halfSize;
-            while (k <= j)
-            {
-                j = j - k;
-                k = k / 2;
-            }
-            j = j + k;
-        }
-    }
+    codice da ridimensionare
 \end{lstlisting}
 
 \begin{lstlisting}
