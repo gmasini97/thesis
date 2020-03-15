@@ -1,5 +1,5 @@
 # Veusz saved document (version 3.1)
-# Saved at 2020-03-13T01:59:54.590973
+# Saved at 2020-03-14T03:08:13.858393
 
 AddImportPath(u'D:\\_repos\\thesis\\_images\\_srcex')
 ImportFileCSV(u'exec-time-cpu-gpu.csv', linked=True, numericlocale=u'en_GB')

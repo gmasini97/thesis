@@ -12,32 +12,26 @@ Per la rappresentazione dei dati dei campioni in ingressi si utilizza una strutt
 \begin{lstlisting}
 struct SignalBuffer_t
 {
-	cuComplex* samples;
-	size_t channels;
-	size_t* channel_size;
-	size_t max_size;
+    cuComplex* samples;
+    size_t size;
+    size_t max_size;
 };
 \end{lstlisting}
 
-Essa continene un array di campioni, il numero di canali, la lunghezza dei buffer di ogni canale e la lunghezza massima disponibile dell'array. I campioni sono organizzati nell'array di numeri complessi secondo lo schema descritto in figura \ref{fig:signalbuffersamples}, ovvero lo stesso modo in cui vengono restituiti i dati dalle funzioni di lettura di \lstinline{libsdnfile}.
+Essa continene un array di campioni, la lunghezza corrente e la lunghezza massima dello stesso. Questa struttura dati viene utilizzata sia dalla CPU sia dalla GPU e l'utilizzo di un array è necessario perché CUDA, senza librerie aggiuntive esterne, non riesce a gestire nei kernel gli oggetti della libreria standard di template di C++, di cui fa parte il template \lstinline{vector}.
 
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=1\textwidth]{signalbuffersamples}
-    \caption{Disposizione dei campioni nella struttura \lstinline{SignalBuffer_t} supponendo $m$ canali.}
-    \label{fig:signalbuffersamples}
-\end{figure}
+Vengono definite anche operazioni su questa struttura, le quali ne garantiscono la corretta creazione, eliminazione e la corrispettiva gestione dei campioni all'interno della stessa. Le funzioni utilizzate sono dichiarate con i modificatori \lstinline{__host__ __device__} i quali sono necessari per segnalare al compilatore \lstinline{nvcc} che tali funzioni possono essere sia eseguite sulla CPU (host), sia sulla scheda grafica (device).
 
-\lstinline{cuComplex} è un tipo importato dalla libreria di CUDA il quale rappresenta un numero complesso. Esso può essere utilizzato, con le apposite operazioni, sia dalla CPU sia dalla GPU.
-
-Vengono definite anche operazioni su questa struttura, le quali garantiscono la corretta gestione dei campioni all'interno della stessa. Le funzioni utilizzate sono dichiarate con i modificatori \lstinline{__host__ __device__} i quali sono necessari al compilatore di CUDA per segnalare che tali funzioni possono essere sia eseguite sulla CPU (host), sia sulla scheda grafica (device).
+Infine \lstinline{cuComplex} è un tipo importato dalla libreria di CUDA il quale rappresenta un numero complesso. Esso può essere utilizzato, con le apposite operazioni, sia dalla CPU sia dalla GPU.
 
 \section{Convoluzione}
-Il primo algoritmo che è stato studiato e implementato è la convoluzione tra segnali la quale è indispensabile perché è il primo strumento con cui si può calcolare la risposta di un sistema ad un determinato segnale se si conosce la risposta impulsiva del sistema stesso.
+Il primo algoritmo che è stato studiato e implementato è la convoluzione tra segnali la quale è indispensabile perché è il primo strumento con cui si può calcolare la risposta di un sistema ad un determinato segnale, a patto che si conosca la risposta impulsiva del sistema stesso.
 
-La definizione di convoluzione tra segnali discreti è descritta dall'equazione \ref{eq:convoluzionediscreta}. Bisogna porre particolare attenzione al fatto che la lunghezza del risultato della convoluzione è uguale alla somma delle lunghezze dei segnali in ingresso meno uno; questo comporta che bisogna far attenzione a gestire il fenomeno detto ``overlap'' tra buffer risultanti consecutivi; questo fenomeno, grazie alla linearità del sistema, si riduce solamente alla somma della ``coda'' del buffer in uscita precedente con i primi campioni del buffer in uscita seguente.
+La definizione di convoluzione tra segnali discreti è descritta dall'equazione \ref{eq:convoluzionediscreta}. Bisogna porre particolare attenzione al fatto che la lunghezza del risultato della convoluzione è uguale alla somma delle lunghezze dei segnali in ingresso meno uno; ciò comporta che sia necessario gestire il fenomeno detto ``overlap'' tra buffer risultanti consecutivi; questo fenomeno, grazie alla linearità del sistema, si riduce solamente alla somma della ``coda'' del buffer in uscita precedente con i primi campioni del buffer in uscita seguente.
 
-Visto che la convoluzione è una operazione che necessita di due segnali in entrata, si è supposto che il secondo segnale sia di un solo canale e non sia diviso in vari buffer, ma sia tutto contenuto in uno solo, mentre il primo segnale può essere diviso in più buffer. Questa decisione è giustificata dal fatto che spesso la convoluzione viene utilizzata tra un segnale molto lungo e uno di gran lunga più corto, poiché, come già detto, è una operazione onerosa in termini di calcolo. In particolare è spesso utilizzata per operazioni di filtraggio e in questo caso il secondo segnale prende il nome di ``kernel del filtro'' \cite[p.~108]{dspguide}. Nelle spiegazioni seguenti si utilizzerà la parola ``kernel'' per indicare il secondo segnale della convoluzione; bisogna prestare attenzione a non confondere il ``kernel'' del filtro con le funzioni ``kernel'' di CUDA.
+Visto che la convoluzione è un'operazione che necessita di due segnali in entrata, si è supposto che il secondo segnale non sia diviso in vari buffer, ma sia tutto contenuto in uno solo, mentre il primo segnale può essere diviso in più buffer. Questa decisione è giustificata dal fatto che spesso la convoluzione viene utilizzata tra un segnale molto lungo e uno di gran lunga più corto, poiché, come già detto, è una operazione onerosa in termini di calcolo. In particolare è spesso utilizzata per operazioni di filtraggio e in questo caso il secondo segnale prende il nome di ``kernel del filtro'' \cite[p.~108]{dspguide}.
+
+Nelle spiegazioni seguenti si utilizzerà la parola ``kernel'' per indicare il secondo segnale della convoluzione; bisogna prestare attenzione a non confondere il ``kernel'' del filtro con le funzioni ``kernel'' di CUDA.
 
 \subsection{CPU}
 
@@ -46,24 +40,45 @@ La convoluzione sulla CPU è implementata utilizzando due cicli \lstinline{for}:
 Una versione semplificata alle componenti fondamentali del codice che è stato utilizzato è il seguente:
 \begin{lstlisting}
 ...
-for (size_t i = 0; i < input_size; i++)
+for (size_t i = 0; i < buffer_size; i++)
 {
-    cuComplex in_sample = get_sample(input, channel, i);
-    for (size_t j = 0; j < kernel_size; j++)
+    cuComplex in_sample = get_sample(buffer, i);
+    for (size_t j = 0; j < kr_size; j++)
     {
-        size_t index = i+j;
-        cuComplex kernel_sample = get_sample(kernel, SIGNAL_CHANNEL, j);
-        cuComplex out_sample = get_sample(temp, channel, index);
-        cuComplex result = cuCaddf(out_sample, cuCmulf(in_sample, kernel_sample));
-        set_sample(temp, channel, index, result);
+        size_t index = i + j;
+        cuComplex kr_sample = get_sample(signal, j);
+        cuComplex out_sample = get_sample(temp, index);
+        cuComplex result = cuCaddf(out_sample,
+                            cuCmulf(in_sample, kr_sample));
+        set_sample(temp, index, result);
     }
 }
 ...
 \end{lstlisting}
-Come si può osservare sono presenti i due cicli \lstinline{for} e le operazioni per effettuare l'accumulazione nel buffer temporaneo. Le funzioni \lstinline{cuCaddf} e \lstinline{cuCmulf} sono specificate da CUDA per effettuare rispettivamente la somma e il prodotto tra numeri complessi. È importante sapere che l'implementazione di \lstinline{get_sample} è scritta in modo che restituisca un numero complesso con parte reale e immaginaria uguali a $0$ (zero) nel caso l'indice richiesto sia fuori dalla dimensione dell'array del canale.
+Come si può osservare sono presenti i due cicli \lstinline{for} e le operazioni per effettuare l'accumulazione nel buffer temporaneo. Le funzioni \lstinline{cuCaddf} e \lstinline{cuCmulf} sono specificate da CUDA per effettuare rispettivamente la somma e il prodotto tra numeri complessi.
 
-Questo tipo di implementazione viene chiamata da Smith ``algoritmo dal lato dell'ingresso'' \cite[pp.~112-115]{dspguide}, poiché elabora il contributo di ogni singolo elemento dell'ingresso rispetto a più posizioni nell'uscita.
+Questo tipo di implementazione viene chiamata da Smith ``algoritmo dal lato dell'ingresso'' \cite[pp.~112-115]{dspguide}, poiché per ogni singolo elemento dell'ingresso ne elabora il contributo a più posizioni nell'uscita. Esso equivale ad eseguire la somma dei ``sottosegnali'' ottenuti dal prodotto tra il kernel del filtro e il valore del campione in ingresso e dalla traslazione rispetto al suo indice. Una visualizzazione grafica dell'algoritmo è riportata in figura \ref{fig:convingresso}.
 
+\begin{figure}[h!]
+    \centering
+    \subfloat[Segnale in ingresso]{\includegraphics[width=0.32\textwidth]{conv/conv-in}}
+    \subfloat[Kernel del filtro]{\includegraphics[width=0.32\textwidth]{conv/conv-kr}}
+    \subfloat[Risultato]{\includegraphics[width=0.32\textwidth]{conv/conv}}
+    
+    \subfloat[$i=0$]{\includegraphics[width=0.25\textwidth]{conv/c1}}
+    \subfloat[$i=1$]{\includegraphics[width=0.25\textwidth]{conv/c2}}
+    \subfloat[$i=2$]{\includegraphics[width=0.25\textwidth]{conv/c3}}
+    \subfloat[$i=3$]{\includegraphics[width=0.25\textwidth]{conv/c4}}
+    
+    \subfloat[$i=4$]{\includegraphics[width=0.25\textwidth]{conv/c5}}
+    \subfloat[$i=5$]{\includegraphics[width=0.25\textwidth]{conv/c6}}
+    \subfloat[$i=6$]{\includegraphics[width=0.25\textwidth]{conv/c7}}
+    \subfloat[$i=7$]{\includegraphics[width=0.25\textwidth]{conv/c8}}
+    \caption{Scomposizione dei singoli contributi del segnale in ingresso in una convoluzione.}
+    \label{fig:convingresso}
+\end{figure}
+
+\begin{comment}
 In figura \ref{fig:pulse32conv} si può osservare il risultato della convoluzione di un impulso di 32 campioni con sé stesso ottenuto con l' algoritmo presentato.
 \begin{figure}[h]
     \centering
@@ -72,6 +87,7 @@ In figura \ref{fig:pulse32conv} si può osservare il risultato della convoluzion
     \caption{Convoluzione di un impulso rettangolare con sé stesso. In rosso è segnata la parte reale e in blu la parte immaginaria}
     \label{fig:pulse32conv}
 \end{figure}
+\end{comment}
 
 \subsection{GPU}
 Per implementare la convoluzione sulla GPU è necessario individuare i thread che è possibile parallelizzare e racchiuderli in uno o più kernel. Nel caso in esame si è deciso di utilizzare l'implementazione che Smith chiama ``algoritmo dal lato dell'uscita'' \cite[pp.~116-121]{dspguide}, il quale differisce dall'algoritmo precedentemente illustrato nell'implementazione sulla CPU per il fatto che si calcolano i contributi di vari campioni dell'ingresso rispetto ad un solo campione in uscita. I due algoritmi, seppur presentino due punti di vista diversi, sono equivalenti e restituiscono lo stesso risultato.
@@ -81,35 +97,35 @@ Bisogna prestare attenzione al fatto che dato un kernel di un filtro di $M$ elem
 Il kernel CUDA utilizzato per compiere questa operazione ridotto alle sue operazioni essenziali è il seguente:
 
 \begin{lstlisting}
-__global__ void cudaconvolver_kernel(SignalBuffer_t device_buffer, SignalBuffer_t kernel_buffer, SignalBuffer_t out_buffer, size_t channel)
+__global__ void cudaconvolver_kernel(SignalBuffer_t in_buf, SignalBuffer_t kr_buf, SignalBuffer_t tmp)
 {
     int k = blockIdx.x * blockDim.x + threadIdx.x;
     ...
-    cuComplex temp_sample = make_cuComplex(0,0);
-    for (int i = 0; i < kernel_size; i++)
+    cuComplex kr_s, in_s;
+    cuComplex tmp_s = make_cuComplex(0, 0);
+    for (int i = 0; i < kr_buf_size; i++)
     {
-        kernel_sample =
-            get_sample(kernel_buffer, SIGNAL_CHANNEL, i);
-        input_sample =
-            get_sample(device_buffer, channel, k-i);
-        temp_sample = cuCaddf(temp_sample,
-            cuCmulf(kernel_sample, input_sample));
+        kr_s = get_sample(kr_buf, i);
+        in_s = get_sample(in_buf, k-i);
+        tmp_s = cuCaddf(tmp_s, cuCmulf(kr_s, in_s));
     }
-    set_sample(out_buffer, channel, index, temp_sample);
+    set_sample(tmp, index, tmp_s);
     ...
 }
 \end{lstlisting}
 
 Si noti la presenza dell'indice $k$, il quale viene calcolato in base agli indici del thread corrente e del blocco corrente; esso identifica la posizione $k$ dell'elemento dell'uscita da calcolare. 
 
-Se il segnale in ingresso è composto di $N$ punti e il kernel del filtro è composto da $M$ punti, il segnale in uscita è di $N+M-1$ punti; infatti la funzione kernel viene eseguita $N+M-1$, ovvero è presente una esecuzione della funzione per ogni elemento in uscita.
+Se il segnale in ingresso è composto di $N$ punti e il kernel del filtro è composto da $M$ punti, il segnale in uscita è di $N+M-1$ punti; per questo motivo la funzione kernel viene eseguita $N+M-1$, ovvero è presente una esecuzione della funzione per ogni elemento in uscita.
 
-Nel codice mostrato è stato tolta la parte per la gestione dell'effetto di ``overlap'' in modo da rendere evidenti le parti fondamentali della sua implementazione per la GPU.
+Nel codice mostrato è stato tolta la parte relativa alla gestione dell'effetto di ``overlap'' in modo da rendere evidenti le parti fondamentali dell' implementazione per la GPU.
 
-Il grafico in figura \ref{fig:convtime} rappresenta il tempo necessario per compiere una convoluzione utilizzando un kernel di un filtro di dimensioni fisse (128 punti) e facendo variare la lunghezza del file in ingresso da elaborare. Inoltre per quanto riguarda la GPU sono visualizzati anche valori diversi di lunghezza del buffer di elaborazione, in quanto, a differenza della CPU che non risente della grandezza dello stesso, la GPU presenta prestazioni via via migliori all'aumentare della dimensione del buffer, poiché un buffer più grande significa elaborare più dati in parallelo.
+È inoltre opportuno specificare che la funzione \lstinline{get_sample} restituisce un numero complesso con parte reale e immaginaria nulla nel caso l'indice richiesto sia all'esterno della dimensione del buffer.
+
+Il grafico in figura \ref{fig:convtime} rappresenta il tempo necessario per compiere una convoluzione utilizzando un kernel di un filtro di dimensioni fisse (128 punti) al variare della lunghezza del file in ingresso da elaborare. Inoltre per quanto riguarda la GPU sono visualizzati anche valori diversi di lunghezza del buffer di elaborazione, in quanto, a differenza della CPU che non risente della grandezza dello stesso, la GPU presenta prestazioni via via migliori all'aumentare della dimensione del buffer, poiché un buffer più grande significa elaborare più dati in parallelo. Per come è stato progettato il programma è necessario che un buffer venga elaborato prima che si possa elaborare il seguente (non è possibile elaborare più buffer in parallelo).
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{conv-time}
+    \includegraphics[width=0.85\textwidth]{conv-time}
     \caption{Tempo di convoluzione, CPU e GPU a confronto}
     \label{fig:convtime}
 \end{figure}
@@ -123,29 +139,27 @@ Come indicato nell'equazione \ref{eq:dft}, la DFT è sostanzialmente una sommato
 L'implementazione della trasformata di Fourier discreta è ricavata direttamente dalla sua equazione.
 
 \begin{lstlisting}
-void dft_wsio(SignalBuffer_t* bufferIn, SignalBuffer_t* bufferOut, size_t channel, size_t size)
+void dft(SignalBuffer_t &in_buf, SignalBuffer_t &out_buf, size_t size)
 {
+    cuComplex s, in_s, out_s;
     ...
     for (size_t k = 0; k < size; k++)
     {
+        out_s = get_sample(out_buf, k);
         ...
         for (size_t i = 0; i < size; i++)
         {
-            cuComplex s =
-                cuComplex_exp(-2 * M_PI * k * i / size);
-            cuComplex sample =
-                get_sample(*bufferIn, channel, i);
-            cuComplex outs =
-                get_sample(*bufferOut, channel, k);
-            outs = cuCaddf(outs, cuCmulf(sample, s));
-            set_sample(*bufferOut, channel, k, outs);
+            s = cuComplex_exp(-2 * M_PI * k * i / size);
+            in_s = get_sample(in_buf, i);
+            out_s = cuCaddf(out_s, cuCmulf(s, in_s));
         }
+        set_sample(out_buf, k, out_s);
     }
     ...
 }
 \end{lstlisting}
 
-\lstinline{cuComplex_exp(float x)} è una funzione che restituisce il numero complesso $e^{jx}$. L'algoritmo prende in input un buffer di cui effettuare la trasformata, un buffer in cui inserire il risultato della trasformazione, il canale dei buffer su cui operare e la dimensione in punti della trasformata. Come esposto in precedenza la funzione \lstinline{get_sample} restituisce il numero complesso $0$ nel caso il valore dell'indice sia fuori range. Questo permette di implementare facilmente la dft di un buffer con un pad di zeri alla sua destra.
+\lstinline{cuComplex_exp(float x)} è una funzione che restituisce il numero complesso $e^{jx}$. L'algoritmo prende in input un buffer di cui effettuare la trasformata, un buffer in cui inserire il risultato della trasformazione, il canale dei buffer su cui operare e la dimensione in punti della trasformata. Come esposto in precedenza la funzione \lstinline{get_sample} restituisce il numero complesso $0$ nel caso il valore dell'indice sia fuori range. Questo permette di implementare facilmente la DFT di un buffer con un pad di zeri alla sua destra.
 
 \begin{figure}[h]
     \centering
@@ -161,41 +175,144 @@ Inserendo nel programma l'impulso di 512 campioni mostrato in figura \ref{fig:pu
 L'operazione di trasformata di Fourier discreta è implementata sulla GPU utilizzando il seguente kernel:
 
 \begin{lstlisting}
-__global__ void cudadft_kernel_dft(SignalBuffer_t device_buffer, SignalBuffer_t out_buffer, size_t channel, size_t size)
+__global__ void cudadft_kernel(SignalBuffer_t in_buf, SignalBuffer_t out_buf)
 {
     int k = blockIdx.x * blockDim.x + threadIdx.x;
     ...
-    cuComplex temp = make_cuComplex(0, 0);
+    size_t size = get_max_buffer_size(out_buf);
+    cuComplex out_s = make_cuComplex(0, 0);
+    cuComplex in_s, s;
     for (int i = 0; i < size; i++)
     {
-        cuComplex sample =
-            get_sample(device_buffer, channel, i);
-        cuComplex s
-            = cuComplex_exp(-2.0f * PI * k * i / size);
-        temp = cuCaddf(temp, cuCmulf(sample, s));
+        in_s = get_sample(device_buffer, i);
+        s = cuComplex_exp(-2.0f * PI * k * i / size);
+        out_s = cuCaddf(out_s, cuCmulf(in_s, s));
     }
-    set_sample(out_buffer, channel, k, temp);
+    set_sample(out_buf, k, out_s);
+    ...
 }
 
 \end{lstlisting}
 
-Anche in questo caso, il kernel viene eseguito in parallelo su tutti i campioni del segnale risultando più prestante della rispettiva implementazione sulla CPU. In particolare si può già notare che la complessità di ogni singolo thread si è ridotta a $O(N)$.
+Anche in questo caso, il kernel viene eseguito in parallelo su tutti i campioni del segnale risultando più prestante della rispettiva implementazione sulla CPU. In particolare si può già notare che la complessità di ogni singolo thread si è ridotta a $O(N)$ e, essendo i thread eseguiti contemporaneamente, la complessità reale non dovrebbe discostarsi troppo da quest'ultima, come dimostrato dai dati ricavati dal programma e mostrati in figura \ref{fig:dfttime}.
 
-[grafici prestazioni]
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{dft-time}
+    \caption{Tempo di calcolo per DFT tra GPU e CPU, al variare del numero di punti della DFT.}
+    \label{fig:dfttime}
+\end{figure}
 
 \section{Fast Fourier Transform}
-L'operazione di DFT è onerosa in termini di calcolo in quanto ha complessita $O(N^2)$, per cui si utilizza spesso la Fast Fourier Transform al suo posto (FFT). Uno degli algoritmi più popolari per il calcolo della FFT è quello ideato da Cooley e Tukey nel 1965. Esso fa uso della decomposizione interlacciata e delle somme a ``farfalla''.
+L'operazione di DFT è onerosa in termini di calcolo in quanto ha complessita $O(N^2)$, per cui si utilizza spesso la Fast Fourier Transform al suo posto (FFT). Uno degli algoritmi più popolari per il calcolo della FFT è quello ideato da Cooley e Tukey nel 1965. Esso fa uso della decomposizione interlacciata e delle somme a ``farfalla'' le quali permettono all'algoritmo di ottenere una complessità di tipo $O(N log_2N)$.
 
-[da espandere con più info]
+\subsection{Spiegazione matematica}
+La FFT utilizza le proprietà di periodicità e di ``simmetria complessa coniugata'' del numero complesso $e^{-2\pi j\frac{kn}{N}}$ che si può trovare a secondo membro dell'equazione \ref{eq:dft}. Infatti, definendo $W_N=e^{-\frac{2\pi j}{N}}$ è immediato verificare che:
+
+\begin{equation}
+    W_N^{k(N-n)} = e^{-2\pi jk}e^{+2\pi j\frac{kn}{N}} = W_N^{-kn} = (W_N^{kn})^\ast
+\end{equation}
+\begin{equation}
+    W_N^{kn} = W_N^{(k+N)n} = W_N^{k(n+N)}
+    \label{eq:wnperiodica}
+\end{equation}
+
+Separando la sommatoria della DFT in equazione \ref{eq:dft} in termini pari e in termini dispari si ottiene:
+
+\begin{equation}
+    X_n = \displaystyle\sum_{k=0}^{N-1}x_k W_N^{kn} = \displaystyle\sum_{k\ pari}x_k W_N^{kn} + \displaystyle\sum_{k\ dispari}x_k W_N^{kn}
+\end{equation}
+
+Supponendo $N=2^m$ con $m=\mathbb{N}$, gli indici delle sommatorie possono essere scritti come $2p$ e $2p+1$ con $p=0,1,\dots,\frac{N}{2}-1$:
+
+\begin{equation}
+    X_n = \displaystyle\sum_{p=0}^{\frac{N}{2}-1}x_{2p} W_N^{2pn} + \displaystyle\sum_{p=0}^{\frac{N}{2}-1}x_{2p+1} W_N^{(2p+1)n}
+\end{equation}
+
+Raccogliendo nella seconda sommatoria si ottiene:
+
+\begin{equation}
+    X_n = \displaystyle\sum_{p=0}^{\frac{N}{2}-1}x_{2p} (W_N^2)^{pn} + W_N^{n}\displaystyle\sum_{p=0}^{\frac{N}{2}-1}x_{2p+1} (W_N^2)^{pn}
+\end{equation}
+
+Notando che $W_N^2 = e^{-2\pi j\frac{2}{N}} = e^{-\frac{2\pi j}{N/2}} = W_{N/2}$ si ottiene:
+
+\begin{equation}
+    X_n = \displaystyle\sum_{p=0}^{\frac{N}{2}-1}x_{2p} W_{N/2}^{pn} + W_N^{n}\displaystyle\sum_{p=0}^{\frac{N}{2}-1}x_{2p+1} W_{N/2}^{pn}
+    \label{eq:dftnsu2}
+\end{equation}
+
+Le due sommatorie nella \ref{eq:dftnsu2} sono due DFT di ${N/2}$ elementi e la loro somma equivale alla DFT originaria, $X_n$.
+
+Il ragionamento utilizzato fino ad ora si può quindi riapplicare alle DFT di $N/2$ elementi ottenute nella \ref{eq:dftnsu2}, fino ad ottenere, dopo $log_2 N$ volte, delle DFT di un singolo elemento.
+
+Se per una DFT bisogna compiere $N^2$ operazioni, dopo ogni suddivisione in pari/dispari la DFT viene riscritta come due DFT di $N/2$ elementi e $N$ somme. Questo significa che il numero di operazioni sono diventate $2(\frac{N}{2})^2 + N = \frac{N^2}{2}+N$ e procedendo in maniera analoga si arriva al numero di operazioni dopo $log_2 N$ suddivisioni: $N + Nlog_2 N$ che equivale, quindi, ad una complessità di $O(Nlog_2 N)$ per $N >> 1$.
+
+\subsection{Spiegazione dell'algoritmo}
+
+\begin{wrapfigure}{r}{0.5\textwidth}
+    \centering
+    \includegraphics[width=0.48\textwidth]{fft-intrl}
+    \caption{Scomposizione interlacciata per il calcolo della FFT di un array di 8 elementi.}
+    \label{fig:fftintrl}
+\end{wrapfigure}
+
+Data la spiegazione matematica della sezione precedente, è immediato notare che il primo passo per calcolare la FFT di un array di $N=2^m\ ,\ m=\mathbb{N}$ è quello di riordinare gli elementi in modo che nella prima metà dell'array ci siano gli elementi in posizione pari, mentre nella seconda metà gli elementi di posizione dispari. Dopodiché si ripete questa separazione per i due ``sottoarray'' di $N/2$ elementi. Su un calcolatore ad aritmetica binaria questo è facilmente riconducibile ad un ordinamento a ``bit invertiti'' degli indici dell'array, come mostrato in figura \ref{fig:fftintrl} per un array di dimensione $N=8$.
+
+\begin{wrapfigure}{r}{0.30\textwidth}
+    \centering
+    \includegraphics[width=0.28\textwidth]{butterfly}
+    \caption{La ``farfalla'' formata dalle operazioni per il calcolo della FFT.}
+    \label{fig:fftfarfalla}
+\end{wrapfigure}
+
+In seguito bisogna calcolare la DFT di ogni singolo elemento, un calcolo banale in quanto il risultato della DFT di un singolo elemento è l'elemento stesso.
+
+A questo punto bisogna effettuare le operazioni di somma all'indietro rispettando, quindi, l'ordine con cui si è effettuato la suddivisione dell'array. Notiamo, innanzitutto, che ad ogni ``livello'' di suddivisione si effettua una moltiplicazione e una somma; inoltre è importante notare che in una DFT di $N$ punti si ha $W_N^{k+N/2} = -W_N^k$ e quindi che, grazie alla \ref{eq:wnperiodica}:
+
+\begin{equation}
+    X_{n+N/2} = \displaystyle\sum_{p=0}^{\frac{N}{2}-1}x_{2p} W_{N/2}^{pn} - W_N^{n}\displaystyle\sum_{p=0}^{\frac{N}{2}-1}x_{2p+1} W_{N/2}^{pn}
+    \label{eq:dftnsu2}
+\end{equation}
+
+Disegnando, quindi, un diagramma per il calcolo di $X_n$ e $X_{n+N/2}$ si ottiene un diagramma in figura \ref{fig:fftfarfalla} che viene denominato ``farfalla'' per la sua forma. Le operazioni a ``farfalla'' si combinano dall'array iniziale ordinato a ``bit invertiti'' nel modo raffigurato in figura \ref{fig:fftfarfalle} per un array iniziale di dimensione $N=4$.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{butterfly-all}
+    \caption{Operazioni a farfalla consecutive per il calcolo della FFT di un array di 4 elementi.}
+    \label{fig:fftfarfalle}
+\end{figure}
+
 
 \subsection{CPU}
-La FFT è implementata sulla CPU nel seguente modo:
+Per implementare sulla CPU la FFT è necessario, quindi, la creazione di una procedura di ordinamento a bit invertiti e una per effettuare le operazioni a ``farfalla''.
 
 \begin{lstlisting}
-    [codice da ridimensionare]
+void fft_wsio(SignalBuffer_t &b_in, SignalBuffer_t &b_out, size_t points)
+{
+    ... // declare vars, assign sizes
+    bit_reversal_sort_wsio(b_in, b_out, points);
+    for (size_t level = 0; level < levels; level++){
+        ...
+        wm = cuComplex_exp(-(M_PI / butterflies_per_dft));
+        w = make_cuComplex(1,0);
+        for (size_t butterfly = 0; butterfly < butterflies_per_dft; butterfly++){
+            for (size_t dft = 0; dft < dfts; dft++){
+                ... // calculate indexes
+                cuComplex a = get_sample(b_out, index_a);
+                cuComplex b = get_sample(b_out, index_b);
+                butterfly_calculation(&a, &b, w);
+                ... // set out samples
+            }
+            w = cuCmulf(w, wm);
+        }
+        ...
+    }
+}
 \end{lstlisting}
 
-[da fare].
+Nell'implementazione si può notare che per ogni livello si scorrono prima le operazioni a farfalla e poi le ``sotto DFT'' corrispondenti; in questo modo si può utilizzare lo stesso valore di $W_N^k$ (si faccia riferimento ad esempio alla figura \ref{fig:fftfarfalle}, dove $W_2^0$ e $W_2^1$ appaiono due volte al primo livello). Dopodiché il valore successivo $W_N^{k+1}$ si ricava dalla moltiplicazione di $W_N^k$ con il valore di \lstinline{wm}, il quale contiene il numero complesso con argomento necessario per calcolare $W_N^{k+1}$; questo evita il calcolo tramite funzioni trigonometriche.
 
 \subsection{GPU}
 

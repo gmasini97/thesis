@@ -72,32 +72,35 @@ Essi generano degli spettri a righe in corrispondenza delle pulsazioni multiple 
 Per quanto la CFT e la serie di Fourier siano degli strumenti matematici indispensabili per comprendere l'analisi dei segnali, esse trovano relativamente poca applicazione pratica nella elaborazione dei segnali, poiché solitamente i segnali che devono essere processati da un calcolatore hanno natura tempo-discreta (ovvero sono stati campionati) e necessitano, quindi, dell'utilizzo della DTFT o della DFT. Come vedremo in seguito, però, si utilizza sempre la DFT, in quanto non è possibile modellare in un calcolatore il concetto di ``infinito'' fondamentale per la definizione e il calcolo della DTFT \cite[pp.~144-145]{dspguide}.
 
 \subsection{La trasformata di Fourier Discreta (DFT)}
-Come presentato nella sezione precedente, la DFT trasforma un segnale tempo-discreto periodico nelle sue componenti nel dominio delle frequenze; essa per un segnale di $N$ punti è definita nel seguente modo \cite[p.~570]{dspguide}:
-\begin{equation}
-    X[k] = \frac{1}{N}\displaystyle\sum_{n=0}^{N-1}x[n]e^{-j 2\pi kn/N}
-\end{equation}
-Si presti attenzione al fatto che la trasformata è definita su $N$ punti da $0$ a $N-1$ ed essi rappresentano le frequenze positive per $0 \leq n \leq N/2$ e frequenze negative per $N/2 \leq n \leq N-1$, poiché lo spettro di frequenze di un segnale discreto è periodico. Questo comporta che la trasformata di un segnale reale (con parte immaginaria nulla per ogni campione) abbia la parte reale dello spettro in simmetria pari rispetto a $N/2$ e parte immaginaria in simmetria dispari rispetto a $N/2$ \cite[p.~570]{dspguide}.
+Come presentato nella sezione precedente, la DFT trasforma un segnale tempo-discreto periodico nelle sue componenti nel dominio delle frequenze. Nella pratica dei DSP essa viene utilizzata anche per segnali aperiodici con particolari accortezze (per evitare fenomeni di aliasing o convoluzione circolare).
 
-L'operazione di antitrasformazione è definita nel modo seguente \cite[p.~572]{dspguide}:
+Per un segnale di $N$ punti è definita nel seguente modo \cite[p.~2.50]{calandrino}:
 \begin{equation}
-    x[n] = \displaystyle\sum_{k=0}^{N-1}X[k]e^{j 2\pi kn/N}
+    X_n = \displaystyle\sum_{k=0}^{N-1}x_k e^{-j 2\pi kn/N}
+    \label{eq:dft}
+\end{equation}
+Si presti attenzione al fatto che la trasformata è periodica di periodo $N$, conseguenza del fatto che il segnale in ingresso è discreto \cite[p.~2.30]{calandrino}. Inoltre i punti da $0$ a $N/2$ rappresentano le frequenze positive e da $N/2$ a $N-1$ le frequenze negative. Questo comporta che la trasformata di un segnale reale (con parte immaginaria nulla per ogni campione) abbia la parte reale dello spettro in simmetria pari rispetto a $N/2$ e parte immaginaria in simmetria dispari rispetto a $N/2$ \cite[p.~570]{dspguide}.
+
+L'operazione di antitrasformazione è definita nel modo seguente \cite[p.~2.50]{calandrino}:
+\begin{equation}
+    x_n = \frac{1}{N}\displaystyle\sum_{k=0}^{N-1}X_k e^{j 2\pi kn/N}
 \end{equation}
 
-Nonostante la DFT sia un ottimo punto di partenza per poter calcolare la trasformata di un segnale discreto con l'utilizzo del calcolatore elettronico, essa è limitata dal fatto che è onerosa in termini di tempi di calcolo; come vedremo in seguito nel capitolo \ref{implementazioni} al suo posto si utilizza l'algoritmo di Cooley-Tukey \cite{cooleytukey}, denominato ``FFT'' ovvero \textit{fast Fourier transform}.
+Nonostante la DFT sia un ottimo punto di partenza per poter calcolare la trasformata di un segnale discreto con l'utilizzo del calcolatore elettronico, essa è limitata dal fatto che è onerosa in termini di tempi di calcolo; come vedremo in seguito nel capitolo \ref{implementazioni} al suo posto si utilizza l'algoritmo di Cooley-Tukey \cite{cooleytukey}, denominato ``FFT'' ovvero \textit{Fast Fourier Transform}, il quale permette di ridurre la complessità computazionale della trasformazione.
 
 \section{GPU e CUDA}
 Lo studio delle implementazioni su GP-GPU viene effettuato tramite l'utilizzo della tecnologia CUDA proprietaria di Nvidia. Essa espone una interfaccia di programmazione per l'utilizzo del calcolo parallelo delle schede grafiche di proprietà di Nvidia in linguaggio di programmazione C++.
 
-È vantaggioso studiare implementazioni su schede video in quanto esse permettono di effettuare un elevato numero di operazioni parallele su un certo insieme di dati; infatti il termine scheda ``video'' deriva dal fatto che in principio erano utilizzate soprattutto per l'elaborazione e rendering di video, dove sono necessarie elaborazioni simili per tanti dati quanti sono i pixel dell'immagine. In tempi relativamente recenti, però, si è smesso di parlare di GPU come schede video, ma si parla di GP-GPU acronimo di \textit{General Purpose Graphical Processing Unit}, ovvero ``Schede video per scopi generici'', poiché tali dispositivi hanno trovato largo utilizzo per quanto riguarda elaborazioni ad alte prestazioni, soprattutto nell'ambito di ricerca di intelligenze artificiali come le reti neurali.
+È vantaggioso studiare implementazioni su schede video in quanto esse permettono di effettuare un elevato numero di operazioni parallele su un certo insieme di dati; infatti il termine scheda ``video'' deriva dal fatto che in principio erano utilizzate soprattutto per l'elaborazione e rendering di video, dove sono necessarie elaborazioni simili per tanti dati quanti sono i pixel dell'immagine. In tempi relativamente recenti, però, si è smesso di intendere le GPU solamente come schede video, ma si parla di GP-GPU acronimo di \textit{General Purpose Graphical Processing Unit}, ovvero ``Schede video per scopi generici'', poiché tali dispositivi hanno trovato largo utilizzo per quanto riguarda elaborazioni ad alte prestazioni, soprattutto nell'ambito di ricerca di intelligenze artificiali come le reti neurali.
 
 \subsection{Programmazione in CUDA}
-Facendo riferimento alla guida per la programmazione in CUDA di Nvidia\cite{cuda_programming_guide} il principale elemento di calcolo che viene somministrato alla GPU è il \textit{kernel}, il quale è una funzione che viene eseguita un numero definito di volte in parallelo sulla GPU quando essa viene invocata. Un kernel viene dichiarato utilizzando il modificatore \lstinline{__global__}. Inoltre è importante tenere a mente che al kernel possono essere passati come parametri solo tipi predefiniti, puntatori o struct di tipi predefiniti o puntatori, a patto che i puntatori facciano riferimento ad un'area di memoria sulla GPU, non nella RAM. Questo comporta che i dati da elaborare vadano prima copiati dalla memoria centrale alla memoria della GPU, elaborati e poi ricopiati nella RAM. Le API di CUDA mettono a disposizione le funzioni necessarie per operare questi spostamenti di memoria.
+Facendo riferimento alla guida per la programmazione in CUDA di Nvidia\cite{cuda_programming_guide} il principale elemento di calcolo che viene somministrato alla GPU è il \textit{kernel}, il quale è una funzione che viene eseguita un numero definito di volte in parallelo sulla GPU quando essa viene invocata. Un kernel viene dichiarato utilizzando il modificatore \lstinline{__global__}. Inoltre è importante tenere a mente che al kernel possono essere passati come parametri solo tipi predefiniti, puntatori o struct di tipi predefiniti o puntatori, a patto che i puntatori facciano riferimento ad un'area di memoria sulla memoria della GPU, non nella memoria centrale della CPU. Questo comporta che i dati da elaborare vadano prima copiati dalla memoria centrale alla memoria della GPU, elaborati e poi ricopiati nella RAM. Le API di CUDA mettono a disposizione le funzioni necessarie per operare questi spostamenti di memoria.
 
 I kernel possono essere raggruppati in \textit{stream} (flussi). I kernel facenti parte dello stesso stream vengono eseguiti in successione, ma stream diversi possono essere eseguiti in parallelo. Non c'è modo di sapere in quale istante un kernel entrerà in esecuzione e nemmeno quando esso finirà, per tale motivo risulta necessario porre attenzione alla sincronizzazione dei dati su cui operano i diversi kernel. Anche in questo caso le API fornite da Nvidia mettono a disposizione varie funzioni di sincronizzazione sia all'interno dei kernel di uno stesso blocco (tramite \lstinline!__syncthreads()!), sia per stream (con \lstinline!cudaStreamSynchronize(<stream>)!) sia per la GPU intera (con \lstinline!cudaDeviceSynchronize()!).
 
 Le unità di elaborazione all'interno della GPU sono divise in blocchi ciascuno dei quali è in grado di eseguire un certo numero di thread. Compito del programmatore è distribuire queste risorse ai kernel necessari. I blocchi e i thread al loro interno sono organizzati secondo una matrice 3-dimensionale, e i loro indici sono accessibili all'interno del kernel usando le variabili \lstinline{threadIdx} e \lstinline{blockIdx}.
 
-Un esempio mostrato nella guida alla programmazione di Nvidia \cite{cuda_programming_guide} è il seguente, il quale esegue la somma di elementi di due vettori:
+Un esempio mostrato nella guida alla programmazione di Nvidia \cite{cuda_programming_guide} è il seguente, il quale esegue la somma di elemento per elemento di due vettori:
 
 \begin{lstlisting}
     // Kernel definition
