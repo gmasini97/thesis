@@ -1,4 +1,5 @@
 \chapter{Implementazione}
+\label{cap:implementazione}
 
 \section{Breve descrizione del programma}
 Per lo studio di quanto descritto fino ad ora si è costruito un programma in grado di caricare un file \lstinline{.wav} in buffer di dimensione arbitraria in memoria per poterne elaborare il contenuto; dopodiché è possibile specificare una catena di operazioni da effettuare sul segnale e un metodo di salvataggio del risultato (\lstinline{.wav} o \lstinline{.csv}). La catena di operazioni e il salvataggio vengono specificati in un file di testo. Per la lettura e scrittura su file .wav si utilizza la libreria ``libsndfile'' scritta da Erik de Castro Lopo \cite{libsndfile}.
@@ -122,7 +123,6 @@ Nel codice mostrato è stato tolta la parte relativa alla gestione dell'effetto 
 
 È inoltre opportuno specificare che la funzione \lstinline{get_sample} restituisce un numero complesso con parte reale e immaginaria nulla nel caso l'indice richiesto sia all'esterno della dimensione del buffer.
 
-Il grafico in figura \ref{fig:convtime} rappresenta il tempo necessario per compiere una convoluzione utilizzando un kernel di un filtro di dimensioni fisse (128 punti) al variare della lunghezza del file in ingresso da elaborare. Inoltre per quanto riguarda la GPU sono visualizzati anche valori diversi di lunghezza del buffer di elaborazione, in quanto, a differenza della CPU che non risente della grandezza dello stesso, la GPU presenta prestazioni via via migliori all'aumentare della dimensione del buffer, poiché un buffer più grande significa elaborare più dati in parallelo. Per come è stato progettato il programma è necessario che un buffer venga elaborato prima che si possa elaborare il seguente (non è possibile elaborare più buffer in parallelo).
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.85\textwidth]{conv-time}
@@ -130,10 +130,12 @@ Il grafico in figura \ref{fig:convtime} rappresenta il tempo necessario per comp
     \label{fig:convtime}
 \end{figure}
 
+Il grafico in figura \ref{fig:convtime} rappresenta il tempo necessario per compiere una convoluzione utilizzando un kernel di un filtro di dimensioni fisse (16 punti) al variare della lunghezza del file in ingresso da elaborare. Inoltre per quanto riguarda la GPU sono visualizzati anche valori diversi di lunghezza del buffer di elaborazione, in quanto, a differenza della CPU che non risente della grandezza dello stesso, la GPU presenta prestazioni via via migliori all'aumentare della dimensione del buffer, poiché un buffer più grande significa elaborare più dati in parallelo. Si può anche notare che la GPU ottiene dei tempi di elaborazione peggiori della CPU quando il buffer non è sufficientemente grande: il risultato è giustificato dal fatto che in tale circostanza sono necessari più spostamenti di dati tra memoria RAM e memoria della GPU i quali agiscono da ``collo di bottiglia'' nell'elaborazione. Per come è stato progettato il programma è necessario che un buffer venga elaborato prima che si possa elaborare il seguente (non è possibile elaborare più buffer in parallelo).
+
 \section{DFT}
 Un secondo algoritmo interessante da implementare è la trasformata di Fourier discreta. Essa trova larga applicazione come strumento di analisi spettrale dei segnali, oltre ad essere un punto di partenza per poi introdurre la \textit{Fast Fourier Transform} (FFT).
 
-Come indicato nell'equazione \ref{eq:dft}, la DFT è sostanzialmente una sommatoria di un prodotto di numeri complessi, notiamo però che a differenza della equazione della convoluzione (\ref{ed:convoluzionediscreta}) il valore massimo della sommatoria dipende dalla lunghezza del segnale. Questo significa che nella implementazione saranno necessari due cicli \lstinline{for} innestati che dipendono entrambi dalla lunghezza del segnale. Tale configurazione di cicli \lstinline{for} restituisce una complessità computazionale di tipo $O(N^2)$. Motivo ulteriore per cui si è sviluppato l'algoritmo della FFT.
+Come indicato nell'equazione \ref{eq:dft}, la DFT è sostanzialmente una sommatoria di un prodotto di numeri complessi, notiamo però che a differenza della equazione della convoluzione (\ref{eq:convoluzionediscreta}) il valore massimo della sommatoria dipende dalla lunghezza del segnale. Questo significa che nella implementazione saranno necessari due cicli \lstinline{for} innestati che dipendono entrambi dalla lunghezza del segnale. Tale configurazione di cicli \lstinline{for} restituisce una complessità computazionale di tipo $O(N^2)$. Motivo ulteriore per cui si è sviluppato l'algoritmo della FFT.
 
 \subsection{CPU}
 L'implementazione della trasformata di Fourier discreta è ricavata direttamente dalla sua equazione.
@@ -163,8 +165,8 @@ void dft(SignalBuffer_t &in_buf, SignalBuffer_t &out_buf, size_t size)
 
 \begin{figure}[h]
     \centering
-    \subfloat[Impulso]{\includegraphics[width=0.5\textwidth]{pulse512}}
-    \subfloat[Dft]{\includegraphics[width=0.5\textwidth]{pulse512dft}}
+    \subfloat[Impulso]{\includegraphics[width=0.4\textwidth]{pulse512}}
+    \subfloat[Dft]{\includegraphics[width=0.4\textwidth]{pulse512dft}}
     \caption{DFT di un impulso di 512 campioni. In rosso è segnata la parte reale e in blu la parte immaginaria}
     \label{fig:pulse512}
 \end{figure}
@@ -194,7 +196,7 @@ __global__ void cudadft_kernel(SignalBuffer_t in_buf, SignalBuffer_t out_buf)
 
 \end{lstlisting}
 
-Anche in questo caso, il kernel viene eseguito in parallelo su tutti i campioni del segnale risultando più prestante della rispettiva implementazione sulla CPU. In particolare si può già notare che la complessità di ogni singolo thread si è ridotta a $O(N)$ e, essendo i thread eseguiti contemporaneamente, la complessità reale non dovrebbe discostarsi troppo da quest'ultima, come dimostrato dai dati ricavati dal programma e mostrati in figura \ref{fig:dfttime}.
+Anche in questo caso, il kernel viene eseguito in parallelo su tutti i campioni del segnale risultando più performante della rispettiva implementazione sulla CPU. In particolare si può già notare che la complessità di ogni singolo thread si è ridotta a $O(N)$ e, essendo i thread eseguiti contemporaneamente, la complessità reale non dovrebbe discostarsi troppo da quest'ultima; come dimostrato dai dati relativi al tempo di elaborazione ricavati dal programma e mostrati in figura \ref{fig:dfttime}.
 
 \begin{figure}[h!]
     \centering
@@ -204,7 +206,7 @@ Anche in questo caso, il kernel viene eseguito in parallelo su tutti i campioni 
 \end{figure}
 
 \section{Fast Fourier Transform}
-L'operazione di DFT è onerosa in termini di calcolo in quanto ha complessita $O(N^2)$, per cui si utilizza spesso la Fast Fourier Transform al suo posto (FFT). Uno degli algoritmi più popolari per il calcolo della FFT è quello ideato da Cooley e Tukey nel 1965. Esso fa uso della decomposizione interlacciata e delle somme a ``farfalla'' le quali permettono all'algoritmo di ottenere una complessità di tipo $O(N log_2N)$.
+L'operazione di DFT è onerosa in termini di calcolo in quanto ha complessità $O(N^2)$, per cui si utilizza spesso la Fast Fourier Transform al suo posto (FFT). Uno degli algoritmi più popolari per il calcolo della FFT è quello ideato da Cooley e Tukey nel 1965. Esso fa uso della decomposizione interlacciata e delle somme a ``farfalla'' le quali permettono all'algoritmo di ottenere una complessità di tipo $O(N log_2N)$ \cite{cooleytukey}.
 
 \subsection{Spiegazione matematica}
 La FFT utilizza le proprietà di periodicità e di ``simmetria complessa coniugata'' del numero complesso $e^{-2\pi j\frac{kn}{N}}$ che si può trovare a secondo membro dell'equazione \ref{eq:dft}. Infatti, definendo $W_N=e^{-\frac{2\pi j}{N}}$ è immediato verificare che:
@@ -246,33 +248,32 @@ Le due sommatorie nella \ref{eq:dftnsu2} sono due DFT di ${N/2}$ elementi e la l
 
 Il ragionamento utilizzato fino ad ora si può quindi riapplicare alle DFT di $N/2$ elementi ottenute nella \ref{eq:dftnsu2}, fino ad ottenere, dopo $log_2 N$ volte, delle DFT di un singolo elemento.
 
-Se per una DFT bisogna compiere $N^2$ operazioni, dopo ogni suddivisione in pari/dispari la DFT viene riscritta come due DFT di $N/2$ elementi e $N$ somme. Questo significa che il numero di operazioni sono diventate $2(\frac{N}{2})^2 + N = \frac{N^2}{2}+N$ e procedendo in maniera analoga si arriva al numero di operazioni dopo $log_2 N$ suddivisioni: $N + Nlog_2 N$ che equivale, quindi, ad una complessità di $O(Nlog_2 N)$ per $N >> 1$.
+Se per una DFT bisogna compiere $N^2$ operazioni, dopo ogni suddivisione in pari/dispari la DFT viene riscritta come due DFT di $N/2$ elementi e $N$ operazioni. Questo significa che il numero di operazioni sono diventate $2(\frac{N}{2})^2 + N = \frac{N^2}{2}+N$ e procedendo in maniera analoga si arriva al numero di operazioni dopo $log_2 N$ suddivisioni: $N + Nlog_2 N$ che equivale, quindi, ad una complessità di $O(Nlog_2 N)$ per $N >> 1$.
 
 \subsection{Spiegazione dell'algoritmo}
 
 \begin{wrapfigure}{r}{0.5\textwidth}
     \centering
-    \includegraphics[width=0.48\textwidth]{fft-intrl}
+    \includegraphics[width=0.40\textwidth]{fft-intrl}
     \caption{Scomposizione interlacciata per il calcolo della FFT di un array di 8 elementi.}
     \label{fig:fftintrl}
 \end{wrapfigure}
 
-Data la spiegazione matematica della sezione precedente, è immediato notare che il primo passo per calcolare la FFT di un array di $N=2^m\ ,\ m=\mathbb{N}$ è quello di riordinare gli elementi in modo che nella prima metà dell'array ci siano gli elementi in posizione pari, mentre nella seconda metà gli elementi di posizione dispari. Dopodiché si ripete questa separazione per i due ``sottoarray'' di $N/2$ elementi. Su un calcolatore ad aritmetica binaria questo è facilmente riconducibile ad un ordinamento a ``bit invertiti'' degli indici dell'array, come mostrato in figura \ref{fig:fftintrl} per un array di dimensione $N=8$.
-
-\begin{wrapfigure}{r}{0.30\textwidth}
-    \centering
-    \includegraphics[width=0.28\textwidth]{butterfly}
-    \caption{La ``farfalla'' formata dalle operazioni per il calcolo della FFT.}
-    \label{fig:fftfarfalla}
-\end{wrapfigure}
+Data la spiegazione matematica della sezione precedente, è immediato notare che il primo passo per calcolare la FFT di un array di $N=2^m\ ,\ m\in\mathbb{N}$ è quello di riordinare gli elementi in modo che nella prima metà dell'array ci siano gli elementi in posizione pari, mentre nella seconda metà gli elementi di posizione dispari. Dopodiché si ripete questa separazione per i due ``sottoarray'' di $N/2$ elementi. Su un calcolatore ad aritmetica binaria questo è facilmente riconducibile ad un ordinamento a ``bit rovesciati'' degli indici dell'array, come mostrato in figura \ref{fig:fftintrl} per un array di dimensione $N=8$.
 
 In seguito bisogna calcolare la DFT di ogni singolo elemento, un calcolo banale in quanto il risultato della DFT di un singolo elemento è l'elemento stesso.
 
-A questo punto bisogna effettuare le operazioni di somma all'indietro rispettando, quindi, l'ordine con cui si è effettuato la suddivisione dell'array. Notiamo, innanzitutto, che ad ogni ``livello'' di suddivisione si effettua una moltiplicazione e una somma; inoltre è importante notare che in una DFT di $N$ punti si ha $W_N^{k+N/2} = -W_N^k$ e quindi che, grazie alla \ref{eq:wnperiodica}:
+\begin{wrapfigure}{r}{0.28\textwidth}
+    \centering
+    \includegraphics[width=0.20\textwidth]{butterfly}
+    \caption{La ``farfalla'', operazione fondamentale per la FFT.}
+    \label{fig:fftfarfalla}
+\end{wrapfigure}
+
+A questo punto bisogna effettuare le operazioni di somma all'indietro rispettando, quindi, l'ordine con cui si è effettuata la suddivisione dell'array. Notiamo, innanzitutto, che ad ogni ``livello'' di suddivisione si effettua una moltiplicazione e una somma; inoltre è importante notare che in una DFT di $N$ punti si ha $W_N^{k+N/2} = -W_N^k$ e quindi che, grazie alla \ref{eq:wnperiodica}:
 
 \begin{equation}
     X_{n+N/2} = \displaystyle\sum_{p=0}^{\frac{N}{2}-1}x_{2p} W_{N/2}^{pn} - W_N^{n}\displaystyle\sum_{p=0}^{\frac{N}{2}-1}x_{2p+1} W_{N/2}^{pn}
-    \label{eq:dftnsu2}
 \end{equation}
 
 Disegnando, quindi, un diagramma per il calcolo di $X_n$ e $X_{n+N/2}$ si ottiene un diagramma in figura \ref{fig:fftfarfalla} che viene denominato ``farfalla'' per la sua forma. Le operazioni a ``farfalla'' si combinano dall'array iniziale ordinato a ``bit invertiti'' nel modo raffigurato in figura \ref{fig:fftfarfalle} per un array iniziale di dimensione $N=4$.
@@ -316,4 +317,31 @@ Nell'implementazione si può notare che per ogni livello si scorrono prima le op
 
 \subsection{GPU}
 
-[da fare]
+L'implementazione per GPU dell'algoritmo della FFT segue lo stesso schema della CPU, ovvero: si riordina l'array e si effettuano le operazioni a ``farfalla''. La scomposizione in kernel utilizzata consiste nell'operare il riordino tramite una funzione kernel eseguita su ogni elemento dell'array, dopodiché per ogni livello si utilizza un kernel che esegue le somme a farfalla; è chiaro, infatti, che il numero di operazioni a farfalla per ogni livello è uguale a quello degli altri livelli ed è pari ad $N/2$. Quello che cambia da un livello all'altro sono quali coppie di elementi le farfalle elaborano e per questo motivo non è possibile eseguire l'intera FFT con una sola invocazione di kernel, bensì è necessario invocare il kernel per ogni livello (ovvero un numero pari a $log_2 N$ volte), attendendo che i dati siano sincronizzati dopo ogni calcolo.
+
+Il kernel utilizzato per le operazioni a farfalla è qui riportato:
+
+\begin{lstlisting}
+__global__ void cudafft_kernel_butterflies(SignalBuffer_t in_buf, SignalBuffer_t out_buf, size_t level)
+{
+    unsigned int k = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t bpd = (size_t)powf(2, level);
+    size_t index_a = k + (size_t)(k / bpd) * bpd;
+    size_t index_b = index_a + bpd;
+    // get a,b samples
+    cuComplex w = cuComplex_exp(-(2*PI*index_a)/(bpd*2));
+    cuda_butterfly_calculation(&a, &b, w);
+    // set a,b samples
+}
+\end{lstlisting}
+
+La funzione \lstinline{cuda_bufferfly_calculation} esegue l'operazione a farfalla, come nella implementazione per la CPU. La parte interessante del kernel riguarda come ricavare gli indici di \lstinline{a} e \lstinline{b} poiché non è possibile sapere direttamente in quale ``sotto DFT'' è la farfalla, ma è necessario ricavare tale indice.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{fft-time}
+    \caption{Tempo di calcolo per FFT tra GPU e CPU, al variare del numero di punti della FFT.}
+    \label{fig:ffttime}
+\end{figure}
+
+In figura \ref{fig:ffttime} sono raffigurati i tempi di calcolo rispetto alla lunghezza della fft. Le linee sono tratteggiate in quanto la FFT non può essere calcolata, con gli algoritmi presentati, per qualsiasi numero di punti, bensì solo per le potenze di $2$. I tempi di elaborazione rispetto alla DFT sono bassissimi (si noti la scala dell'asse $y$ in microsecondi) e la GPU riesce comunque ad ottenere prestazioni migliori al crescere del numero di punti rispetto alla CPU, seppur quest'ultima abbia tempi di calcolo minori per valori di $N$ bassi, dove la GPU non riesce a competere perché è limitata dagli spostamenti di memoria.

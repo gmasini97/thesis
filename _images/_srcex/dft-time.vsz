@@ -1,5 +1,5 @@
 # Veusz saved document (version 3.1)
-# Saved at 2020-03-14T23:59:22.424563
+# Saved at 2020-03-15T20:57:48.019861
 
 AddImportPath(u'D:\\_repos\\thesis\\_images\\_srcex')
 ImportFileCSV(u'exec-time-dft.csv', linked=True, numericlocale=u'en_GB')

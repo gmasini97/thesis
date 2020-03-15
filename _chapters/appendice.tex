@@ -1,8 +1,24 @@
 \chapter{Funzioni aggiuntive}
-\begin{lstlisting}
-    codice da ridimensionare
-\end{lstlisting}
+\section{Attrezzatura utilizzata}
+Il programma che è stato utilizzato nel corso di questa tesi è stato scritto ed eseguito sulla macchina seguente:
+\begin{itemize}[nosep]
+    \item CPU: Intel Core i5-6500 @3.20GHz, 4 Cores.
+    \item RAM: 16GB
+    \item GPU: Nvidia GeForce GTX 970
+    \begin{itemize}[nosep]
+        \item CUDA Driver version: 10.2
+        \item CUDA Capability: 5.2
+        \item Global Memory: 4096MB
+        \item CUDA Cores: 1664
+        \item Max clock rate: 1.25GHz
+        \item Memory clock rate: 3505Mhz
+        \item Memory bus width: 256 bit
+        \item Max thread per block: 1024
+        \item nvcc version: V10.2.89
+    \end{itemize}
+\end{itemize}
 
+\section{Codice operazione a ``farfalla''}
 \begin{lstlisting}
     void butterfly_calculation(cuComplex* a, cuComplex* b, cuComplex w)
     {

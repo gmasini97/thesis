@@ -1,4 +1,5 @@
 \chapter{Nozioni prerequisite}
+\label{cap:nozioni}
 Prima di cimentarsi in implementazioni di algoritmi è assolutamente necessario comprenderne la loro natura matematica. A tale scopo vengono presentate brevemente in questa sezione alcune nozioni fondamentali per l'elaborazione di segnali digitali.
 
 \section{Concetti fondamentali in DSP}
@@ -19,6 +20,7 @@ Dove $x$ e $y$ sono i due segnali da convolvere.
 La convoluzione per segnali discreti è definita da una sommatoria \cite[p.~120]{dspguide}:
 \begin{equation}
     y[k] = \displaystyle\sum_{j=0}^{M-1}h[j]x[i-j]
+    \label{eq:convoluzionediscreta}
 \end{equation}
 Dove $x$ e $h$ sono i segnali da convolvere, $y$ il risultato della loro convoluzione. $M$ è il numero di punti del segnale $h$. È fondamentale precisare che il segnale risultante dalla convoluzione discreta di $x$ e $h$ contiene $N+M-1$ punti, dove $N$ indica il numero di punti del segnale $x$.
 
@@ -86,7 +88,7 @@ L'operazione di antitrasformazione è definita nel modo seguente \cite[p.~2.50]{
     x_n = \frac{1}{N}\displaystyle\sum_{k=0}^{N-1}X_k e^{j 2\pi kn/N}
 \end{equation}
 
-Nonostante la DFT sia un ottimo punto di partenza per poter calcolare la trasformata di un segnale discreto con l'utilizzo del calcolatore elettronico, essa è limitata dal fatto che è onerosa in termini di tempi di calcolo; come vedremo in seguito nel capitolo \ref{implementazioni} al suo posto si utilizza l'algoritmo di Cooley-Tukey \cite{cooleytukey}, denominato ``FFT'' ovvero \textit{Fast Fourier Transform}, il quale permette di ridurre la complessità computazionale della trasformazione.
+Nonostante la DFT sia un ottimo punto di partenza per poter calcolare la trasformata di un segnale discreto con l'utilizzo del calcolatore elettronico, essa è limitata dal fatto che è onerosa in termini di tempi di calcolo; come vedremo in seguito nel capitolo \ref{cap:implementazione} al suo posto si utilizza l'algoritmo di Cooley-Tukey \cite{cooleytukey}, denominato ``FFT'' ovvero \textit{Fast Fourier Transform}, il quale permette di ridurre la complessità computazionale della trasformazione.
 
 \section{GPU e CUDA}
 Lo studio delle implementazioni su GP-GPU viene effettuato tramite l'utilizzo della tecnologia CUDA proprietaria di Nvidia. Essa espone una interfaccia di programmazione per l'utilizzo del calcolo parallelo delle schede grafiche di proprietà di Nvidia in linguaggio di programmazione C++.
